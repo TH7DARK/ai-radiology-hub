@@ -6,10 +6,14 @@ import { Progress } from '@/components/ui/progress';
 import { Upload, FileImage, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { supabase } from '@/integrations/supabase/client';
-import type { Exam } from './Dashboard';
 
 interface ImageUploadProps {
-  onUploadComplete: (exam: Exam) => void;
+  onUploadComplete: (examData: {
+    imageName: string;
+    imageUrl: string;
+    diagnosis: string;
+    confidence: number;
+  }) => void;
 }
 
 export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
@@ -107,24 +111,19 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
         throw new Error(data.error);
       }
 
-      // Create exam object with real diagnosis
-      const exam: Exam = {
-        id: Date.now().toString(),
-        date: new Date().toISOString(),
+      // Pass data to parent component
+      onUploadComplete({
         imageName: selectedFile.name,
         imageUrl: previewUrl || '',
         diagnosis: data.diagnosis,
         confidence: data.confidence,
-        status: 'completed'
-      };
-
-      setIsAnalyzing(false);
-      setProgress(0);
-      onUploadComplete(exam);
+      });
       
       // Reset form
       setSelectedFile(null);
       setPreviewUrl(null);
+      setIsAnalyzing(false);
+      setProgress(0);
 
       toast({
         title: "Análise concluída",
@@ -217,12 +216,12 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-medium py-3"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Analisar com OpenAI
+                  Analisar com IA
                 </Button>
               ) : (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-medium">Analisando com OpenAI...</span>
+                    <span className="text-white font-medium">Analisando com IA...</span>
                     <span className="text-blue-300">{progress}%</span>
                   </div>
                   <Progress value={progress} className="bg-white/10" />
@@ -251,6 +250,7 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
             <li>• Evite reflexos ou obstruções na imagem</li>
             <li>• Formatos aceitos: JPEG e PNG (máx. 10MB)</li>
             <li>• A análise é feita pela OpenAI GPT-4o com capacidade de visão</li>
+            <li>• Os diagnósticos são salvos automaticamente no seu histórico</li>
           </ul>
         </CardContent>
       </Card>

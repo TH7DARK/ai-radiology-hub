@@ -14,17 +14,57 @@ export const DiagnosisResult = ({ exam }: DiagnosisResultProps) => {
   const { toast } = useToast();
 
   const handleDownload = () => {
+    const content = `
+DIAGNÓSTICO MÉDICO - DiagnosIA
+========================================
+
+Paciente: ${exam.user_id}
+Data do Exame: ${new Date(exam.created_at).toLocaleDateString('pt-BR')}
+Arquivo: ${exam.image_name}
+Confiança da IA: ${exam.confidence}%
+
+DIAGNÓSTICO:
+${exam.diagnosis}
+
+========================================
+Este diagnóstico foi gerado por inteligência artificial e deve sempre ser validado por um profissional médico qualificado.
+    `;
+
+    const blob = new Blob([content], { type: 'text/plain' });
+    const url = window.URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `diagnostico_${exam.image_name.split('.')[0]}_${new Date(exam.created_at).toISOString().split('T')[0]}.txt`;
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
+    window.URL.revokeObjectURL(url);
+
     toast({
       title: "Download iniciado",
-      description: "O relatório está sendo preparado para download.",
+      description: "O relatório foi baixado com sucesso.",
     });
   };
 
-  const handleShare = () => {
-    toast({
-      title: "Link copiado",
-      description: "Link do diagnóstico copiado para a área de transferência.",
-    });
+  const handleShare = async () => {
+    const text = `Diagnóstico DiagnosIA - Arquivo: ${exam.image_name} - Confiança: ${exam.confidence}%`;
+    
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: 'Diagnóstico DiagnosIA',
+          text: text,
+        });
+      } catch (error) {
+        // User cancelled sharing
+      }
+    } else {
+      navigator.clipboard.writeText(text);
+      toast({
+        title: "Link copiado",
+        description: "Informações do diagnóstico copiadas para a área de transferência.",
+      });
+    }
   };
 
   const getConfidenceColor = (confidence: number) => {
@@ -70,19 +110,19 @@ export const DiagnosisResult = ({ exam }: DiagnosisResultProps) => {
           </CardHeader>
           <CardContent>
             <img
-              src={exam.imageUrl}
+              src={exam.image_url}
               alt="Raio X"
               className="w-full h-64 object-contain bg-black/20 rounded-lg mb-4"
             />
             <div className="space-y-2 text-sm">
               <div className="flex justify-between">
                 <span className="text-blue-200">Arquivo:</span>
-                <span className="text-white">{exam.imageName}</span>
+                <span className="text-white truncate ml-2">{exam.image_name}</span>
               </div>
               <div className="flex justify-between">
                 <span className="text-blue-200">Data:</span>
                 <span className="text-white">
-                  {new Date(exam.date).toLocaleDateString('pt-BR')}
+                  {new Date(exam.created_at).toLocaleDateString('pt-BR')}
                 </span>
               </div>
               <div className="flex justify-between">
@@ -105,7 +145,7 @@ export const DiagnosisResult = ({ exam }: DiagnosisResultProps) => {
               </CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-white/5 rounded-lg p-4 mb-4">
+              <div className="bg-white/5 rounded-lg p-4 mb-4 max-h-96 overflow-y-auto">
                 <pre className="text-blue-100 whitespace-pre-wrap text-sm leading-relaxed">
                   {exam.diagnosis}
                 </pre>
@@ -143,6 +183,7 @@ export const DiagnosisResult = ({ exam }: DiagnosisResultProps) => {
                   <p className="text-orange-200 text-sm leading-relaxed">
                     Este diagnóstico foi gerado por inteligência artificial e deve ser sempre 
                     validado por um profissional médico qualificado. Não substitui consulta médica.
+                    O diagnóstico foi salvo automaticamente no seu histórico.
                   </p>
                 </div>
               </div>

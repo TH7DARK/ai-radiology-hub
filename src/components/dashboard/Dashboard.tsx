@@ -1,5 +1,5 @@
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -7,30 +7,112 @@ import { Upload, History, User, LogOut, Activity } from 'lucide-react';
 import { ImageUpload } from './ImageUpload';
 import { ExamHistory } from './ExamHistory';
 import { DiagnosisResult } from './DiagnosisResult';
-
-interface DashboardProps {
-  onLogout: () => void;
-}
+import { useAuth } from '../auth/AuthProvider';
+import { supabase } from '@/integrations/supabase/client';
+import { useToast } from '@/hooks/use-toast';
 
 export interface Exam {
   id: string;
-  date: string;
-  imageName: string;
-  imageUrl: string;
+  user_id: string;
+  image_name: string;
+  image_url: string;
   diagnosis: string;
   confidence: number;
   status: 'completed' | 'processing' | 'failed';
+  created_at: string;
+  updated_at: string;
 }
 
-export const Dashboard = ({ onLogout }: DashboardProps) => {
+export const Dashboard = () => {
   const [currentTab, setCurrentTab] = useState('upload');
   const [exams, setExams] = useState<Exam[]>([]);
   const [currentDiagnosis, setCurrentDiagnosis] = useState<Exam | null>(null);
+  const [loading, setLoading] = useState(true);
+  const { user, signOut } = useAuth();
+  const { toast } = useToast();
 
-  const handleUploadComplete = (exam: Exam) => {
-    setExams(prev => [exam, ...prev]);
-    setCurrentDiagnosis(exam);
-    setCurrentTab('result');
+  useEffect(() => {
+    if (user) {
+      fetchExams();
+    }
+  }, [user]);
+
+  const fetchExams = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .select('*')
+        .order('created_at', { ascending: false });
+
+      if (error) {
+        console.error('Erro ao buscar exames:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível carregar o histórico de exames.",
+          variant: "destructive",
+        });
+      } else {
+        setExams(data || []);
+      }
+    } catch (error) {
+      console.error('Erro ao buscar exames:', error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleUploadComplete = async (examData: {
+    imageName: string;
+    imageUrl: string;
+    diagnosis: string;
+    confidence: number;
+  }) => {
+    try {
+      const { data, error } = await supabase
+        .from('exams')
+        .insert([
+          {
+            user_id: user!.id,
+            image_name: examData.imageName,
+            image_url: examData.imageUrl,
+            diagnosis: examData.diagnosis,
+            confidence: examData.confidence,
+            status: 'completed'
+          }
+        ])
+        .select()
+        .single();
+
+      if (error) {
+        console.error('Erro ao salvar exame:', error);
+        toast({
+          title: "Erro",
+          description: "Não foi possível salvar o exame no banco de dados.",
+          variant: "destructive",
+        });
+        return;
+      }
+
+      setExams(prev => [data, ...prev]);
+      setCurrentDiagnosis(data);
+      setCurrentTab('result');
+
+      toast({
+        title: "Exame salvo",
+        description: "O diagnóstico foi salvo com sucesso!",
+      });
+    } catch (error) {
+      console.error('Erro ao salvar exame:', error);
+      toast({
+        title: "Erro",
+        description: "Erro interno ao salvar o exame.",
+        variant: "destructive",
+      });
+    }
+  };
+
+  const handleLogout = async () => {
+    await signOut();
   };
 
   return (
@@ -43,13 +125,16 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
               <div className="w-8 h-8 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-lg flex items-center justify-center">
                 <Activity className="w-5 h-5 text-white" />
               </div>
-              <h1 className="text-xl font-bold text-white">MedAnalyzer AI</h1>
+              <h1 className="text-xl font-bold text-white">DiagnosIA</h1>
             </div>
             
             <div className="flex items-center space-x-4">
+              <span className="text-blue-200 text-sm">
+                Olá, {user?.user_metadata?.full_name || user?.email}
+              </span>
               <Button
                 variant="ghost"
-                onClick={onLogout}
+                onClick={handleLogout}
                 className="text-blue-200 hover:text-white hover:bg-white/10"
               >
                 <LogOut className="w-4 h-4 mr-2" />
@@ -84,7 +169,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
               className="data-[state=active]:bg-blue-500 data-[state=active]:text-white text-blue-200"
             >
               <History className="w-4 h-4 mr-2" />
-              Histórico
+              Histórico ({exams.length})
             </TabsTrigger>
           </TabsList>
 
@@ -99,6 +184,7 @@ export const Dashboard = ({ onLogout }: DashboardProps) => {
           <TabsContent value="history">
             <ExamHistory 
               exams={exams} 
+              loading={loading}
               onViewExam={(exam) => {
                 setCurrentDiagnosis(exam);
                 setCurrentTab('result');

@@ -2,21 +2,22 @@
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { History, Eye, Calendar, FileText, Search } from 'lucide-react';
+import { History, Eye, Calendar, FileText, Search, Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
 import { useState } from 'react';
 import type { Exam } from './Dashboard';
 
 interface ExamHistoryProps {
   exams: Exam[];
+  loading: boolean;
   onViewExam: (exam: Exam) => void;
 }
 
-export const ExamHistory = ({ exams, onViewExam }: ExamHistoryProps) => {
+export const ExamHistory = ({ exams, loading, onViewExam }: ExamHistoryProps) => {
   const [searchTerm, setSearchTerm] = useState('');
 
   const filteredExams = exams.filter(exam =>
-    exam.imageName.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    exam.image_name.toLowerCase().includes(searchTerm.toLowerCase()) ||
     exam.diagnosis.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
@@ -60,7 +61,12 @@ export const ExamHistory = ({ exams, onViewExam }: ExamHistoryProps) => {
             </div>
           </div>
 
-          {filteredExams.length === 0 ? (
+          {loading ? (
+            <div className="text-center py-12">
+              <Loader2 className="w-8 h-8 text-blue-400 mx-auto mb-4 animate-spin" />
+              <p className="text-blue-200">Carregando histórico...</p>
+            </div>
+          ) : filteredExams.length === 0 ? (
             <div className="text-center py-12">
               {exams.length === 0 ? (
                 <>
@@ -84,16 +90,16 @@ export const ExamHistory = ({ exams, onViewExam }: ExamHistoryProps) => {
                     <div className="flex items-start justify-between">
                       <div className="flex space-x-4 flex-1">
                         <img
-                          src={exam.imageUrl}
-                          alt={exam.imageName}
+                          src={exam.image_url}
+                          alt={exam.image_name}
                           className="w-16 h-16 object-cover bg-black/20 rounded-lg"
                         />
                         <div className="flex-1 min-w-0">
-                          <h3 className="text-white font-medium truncate">{exam.imageName}</h3>
+                          <h3 className="text-white font-medium truncate">{exam.image_name}</h3>
                           <div className="flex items-center space-x-4 mt-1 text-sm text-blue-200">
                             <span className="flex items-center">
                               <Calendar className="w-3 h-3 mr-1" />
-                              {new Date(exam.date).toLocaleDateString('pt-BR')}
+                              {new Date(exam.created_at).toLocaleDateString('pt-BR')}
                             </span>
                             <span>Confiança: {exam.confidence}%</span>
                           </div>
