@@ -103,7 +103,7 @@ export const AuthPage = () => {
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-black-250"
+                  className="bg-Black/10 border-black/20 text-white placeholder:text-black-250"
                   required
                 />
               </div>
