@@ -114,7 +114,7 @@ serve(async (req) => {
         details: error.message 
       }),
       {
-        status: 500,
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
