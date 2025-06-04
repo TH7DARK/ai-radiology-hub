@@ -38,9 +38,10 @@ serve(async (req) => {
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
+        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o',
+        model: 'gpt-4-vision-preview',
         messages: [
           {
             role: 'system',
@@ -69,7 +70,8 @@ serve(async (req) => {
               {
                 type: 'image_url',
                 image_url: {
-                  url: imageBase64
+                  url: imageBase64,
+                  detail: 'high'
                 }
               }
             ]
@@ -118,3 +120,4 @@ serve(async (req) => {
     );
   }
 });
+
