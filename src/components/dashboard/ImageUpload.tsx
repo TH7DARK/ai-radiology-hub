@@ -66,7 +66,12 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
       reader.readAsDataURL(file);
-      reader.onload = () => resolve(reader.result as string);
+      reader.onload = () => {
+        const base64String = reader.result as string;
+        // Remove o prefixo "data:image/jpeg;base64," ou "data:image/png;base64,"
+        const base64Data = base64String.split(',')[1];
+        resolve(base64Data);
+      };
       reader.onerror = error => reject(error);
     });
   };
@@ -92,6 +97,10 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
       // Convert image to base64
       const imageBase64 = await convertToBase64(selectedFile);
 
+      if (!imageBase64) {
+        throw new Error('Falha ao converter imagem para base64');
+      }
+
       console.log('Enviando imagem para análise...');
 
       // Call our edge function
@@ -107,8 +116,12 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
         throw new Error(error.message || 'Erro ao analisar imagem');
       }
 
-      if (data.error) {
-        throw new Error(data.error);
+      if (!data || data.error) {
+        throw new Error(data?.error || 'Erro desconhecido na análise');
+      }
+
+      if (!data.diagnosis || typeof data.confidence !== 'number') {
+        throw new Error('Resposta inválida da análise');
       }
 
       // Pass data to parent component
@@ -257,3 +270,4 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
     </div>
   );
 };
+
