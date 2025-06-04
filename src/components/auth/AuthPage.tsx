@@ -70,16 +70,16 @@ export const AuthPage = () => {
           <div className="mx-auto w-16 h-16 bg-gradient-to-br from-blue-500 to-cyan-500 rounded-2xl flex items-center justify-center mb-4">
             <Activity className="w-8 h-8 text-white" />
           </div>
-          <h1 className="text-3xl font-bold text-white mb-2">DiagnosIA</h1>
-          <p className="text-blue-200">Sistema Inteligente de Análise de Raio X</p>
+          <h1 className="text-3xl font-bold text-black mb-2">DiagnosIA</h1>
+          <p className="text-black-200">Sistema Inteligente de Análise de Raio X</p>
         </div>
 
-        <Card className="bg-white/10 backdrop-blur-lg border-white/20 shadow-2xl">
+        <Card className="bg-white/10 backdrop-blur-lg border-black/20 shadow-2xl">
           <CardHeader className="text-center">
-            <CardTitle className="text-white text-xl">
+            <CardTitle className="text-black text-xl">
               {isLogin ? 'Acessar Sistema' : 'Criar Conta'}
             </CardTitle>
-            <CardDescription className="text-blue-200">
+            <CardDescription className="text-black-200">
               {isLogin ? 'Entre com suas credenciais' : 'Registre-se para começar'}
             </CardDescription>
           </CardHeader>
