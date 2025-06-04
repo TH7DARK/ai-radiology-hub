@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 import { Progress } from '@/components/ui/progress';
 import { Upload, FileImage, X, CheckCircle } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import { supabase } from '@/integrations/supabase/client';
 import type { Exam } from './Dashboard';
 
 interface ImageUploadProps {
@@ -23,6 +24,15 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
       toast({
         title: "Formato inválido",
         description: "Por favor, selecione uma imagem JPEG ou PNG.",
+        variant: "destructive",
+      });
+      return;
+    }
+
+    if (file.size > 10 * 1024 * 1024) { // 10MB limit
+      toast({
+        title: "Arquivo muito grande",
+        description: "Por favor, selecione uma imagem menor que 10MB.",
         variant: "destructive",
       });
       return;
@@ -48,40 +58,90 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
     }
   };
 
-  const simulateAnalysis = async () => {
+  const convertToBase64 = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.readAsDataURL(file);
+      reader.onload = () => resolve(reader.result as string);
+      reader.onerror = error => reject(error);
+    });
+  };
+
+  const analyzeWithOpenAI = async () => {
+    if (!selectedFile) return;
+
     setIsAnalyzing(true);
     setProgress(0);
 
-    // Simulate progress
-    const intervals = [20, 40, 60, 80, 100];
-    for (const value of intervals) {
-      await new Promise(resolve => setTimeout(resolve, 800));
-      setProgress(value);
+    try {
+      // Simulate progress updates
+      const progressInterval = setInterval(() => {
+        setProgress(prev => {
+          if (prev >= 90) {
+            clearInterval(progressInterval);
+            return 90;
+          }
+          return prev + 10;
+        });
+      }, 500);
+
+      // Convert image to base64
+      const imageBase64 = await convertToBase64(selectedFile);
+
+      console.log('Enviando imagem para análise...');
+
+      // Call our edge function
+      const { data, error } = await supabase.functions.invoke('analyze-xray', {
+        body: { imageBase64 }
+      });
+
+      clearInterval(progressInterval);
+      setProgress(100);
+
+      if (error) {
+        console.error('Erro ao chamar função:', error);
+        throw new Error(error.message || 'Erro ao analisar imagem');
+      }
+
+      if (data.error) {
+        throw new Error(data.error);
+      }
+
+      // Create exam object with real diagnosis
+      const exam: Exam = {
+        id: Date.now().toString(),
+        date: new Date().toISOString(),
+        imageName: selectedFile.name,
+        imageUrl: previewUrl || '',
+        diagnosis: data.diagnosis,
+        confidence: data.confidence,
+        status: 'completed'
+      };
+
+      setIsAnalyzing(false);
+      setProgress(0);
+      onUploadComplete(exam);
+      
+      // Reset form
+      setSelectedFile(null);
+      setPreviewUrl(null);
+
+      toast({
+        title: "Análise concluída",
+        description: "Diagnóstico gerado com sucesso pela OpenAI!",
+      });
+
+    } catch (error) {
+      console.error('Erro na análise:', error);
+      setIsAnalyzing(false);
+      setProgress(0);
+      
+      toast({
+        title: "Erro na análise",
+        description: error instanceof Error ? error.message : "Erro ao analisar a imagem",
+        variant: "destructive",
+      });
     }
-
-    // Simulate OpenAI analysis result
-    const exam: Exam = {
-      id: Date.now().toString(),
-      date: new Date().toISOString(),
-      imageName: selectedFile?.name || 'exam.jpg',
-      imageUrl: previewUrl || '',
-      diagnosis: "Análise da imagem de raio X torácico:\n\n• Campos pulmonares: Transparência preservada bilateralmente\n• Silhueta cardíaca: Dentro dos limites normais\n• Estruturas ósseas: Sem alterações significativas\n• Mediastino: Contornos preservados\n\nConclusão: Exame dentro dos parâmetros normais. Recomenda-se acompanhamento médico regular.",
-      confidence: 92.5,
-      status: 'completed'
-    };
-
-    setIsAnalyzing(false);
-    setProgress(0);
-    onUploadComplete(exam);
-    
-    // Reset form
-    setSelectedFile(null);
-    setPreviewUrl(null);
-
-    toast({
-      title: "Análise concluída",
-      description: "Diagnóstico gerado com sucesso!",
-    });
   };
 
   const clearSelection = () => {
@@ -138,6 +198,7 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
                   size="sm"
                   onClick={clearSelection}
                   className="absolute top-2 right-2"
+                  disabled={isAnalyzing}
                 >
                   <X className="w-4 h-4" />
                 </Button>
@@ -152,22 +213,23 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
 
               {!isAnalyzing ? (
                 <Button
-                  onClick={simulateAnalysis}
+                  onClick={analyzeWithOpenAI}
                   className="w-full bg-gradient-to-r from-green-500 to-emerald-500 hover:from-green-600 hover:to-emerald-600 text-white font-medium py-3"
                 >
                   <CheckCircle className="w-4 h-4 mr-2" />
-                  Iniciar Análise
+                  Analisar com OpenAI
                 </Button>
               ) : (
                 <div className="space-y-3">
                   <div className="flex items-center justify-between">
-                    <span className="text-white font-medium">Analisando imagem...</span>
+                    <span className="text-white font-medium">Analisando com OpenAI...</span>
                     <span className="text-blue-300">{progress}%</span>
                   </div>
                   <Progress value={progress} className="bg-white/10" />
                   <p className="text-blue-200 text-sm text-center">
-                    {progress < 40 ? 'Processando imagem...' : 
-                     progress < 80 ? 'Analisando estruturas...' : 'Gerando diagnóstico...'}
+                    {progress < 30 ? 'Processando imagem...' : 
+                     progress < 70 ? 'Enviando para OpenAI...' : 
+                     progress < 90 ? 'Analisando com IA...' : 'Finalizando diagnóstico...'}
                   </p>
                 </div>
               )}
@@ -187,7 +249,8 @@ export const ImageUpload = ({ onUploadComplete }: ImageUploadProps) => {
             <li>• Use imagens de alta qualidade e bem iluminadas</li>
             <li>• Certifique-se de que o raio X está completo na imagem</li>
             <li>• Evite reflexos ou obstruções na imagem</li>
-            <li>• Formatos aceitos: JPEG e PNG</li>
+            <li>• Formatos aceitos: JPEG e PNG (máx. 10MB)</li>
+            <li>• A análise é feita pela OpenAI GPT-4o com capacidade de visão</li>
           </ul>
         </CardContent>
       </Card>
