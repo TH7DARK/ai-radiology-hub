@@ -92,7 +92,7 @@ export const AuthPage = () => {
                     placeholder="Nome completo"
                     value={fullName}
                     onChange={(e) => setFullName(e.target.value)}
-                    className="bg-white/10 border-white/20 text-white placeholder:text-blue-200"
+                    className="bg-white/10 border-white/20 text-white placeholder:text-black-200"
                     required
                   />
                 </div>
@@ -103,7 +103,7 @@ export const AuthPage = () => {
                   placeholder="Email"
                   value={email}
                   onChange={(e) => setEmail(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-blue-200"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-black-200"
                   required
                 />
               </div>
@@ -113,7 +113,7 @@ export const AuthPage = () => {
                   placeholder="Senha"
                   value={password}
                   onChange={(e) => setPassword(e.target.value)}
-                  className="bg-white/10 border-white/20 text-white placeholder:text-blue-200"
+                  className="bg-white/10 border-white/20 text-white placeholder:text-black-200"
                   required
                 />
               </div>
@@ -130,17 +130,17 @@ export const AuthPage = () => {
             <div className="mt-6 text-center">
               <button
                 onClick={() => setIsLogin(!isLogin)}
-                className="text-blue-300 hover:text-white transition-colors"
+                className="text-black-300 hover:text-white transition-colors"
               >
                 {isLogin ? 'Não tem conta? Registre-se' : 'Já tem conta? Faça login'}
               </button>
             </div>
 
             {!isLogin && (
-              <div className="mt-4 p-3 bg-blue-500/20 rounded-lg border border-blue-400/30">
+              <div className="mt-4 p-3 bg-black-500/20 rounded-lg border border-black-400/30">
                 <div className="flex items-start space-x-2">
-                  <AlertCircle className="w-4 h-4 text-blue-300 mt-0.5 flex-shrink-0" />
-                  <p className="text-blue-200 text-xs">
+                  <AlertCircle className="w-4 h-4 text-black-300 mt-0.5 flex-shrink-0" />
+                  <p className="text-black-200 text-xs">
                     Após se registrar, você receberá um email de confirmação. 
                     Clique no link para ativar sua conta.
                   </p>
@@ -152,15 +152,15 @@ export const AuthPage = () => {
 
         {/* Features */}
         <div className="mt-8 grid grid-cols-3 gap-4 text-center">
-          <div className="text-blue-200">
+          <div className="text-black-200">
             <Shield className="w-8 h-8 mx-auto mb-2 text-blue-400" />
             <p className="text-sm">Seguro</p>
           </div>
-          <div className="text-blue-200">
+          <div className="text-black-200">
             <Zap className="w-8 h-8 mx-auto mb-2 text-cyan-400" />
             <p className="text-sm">Rápido</p>
           </div>
-          <div className="text-blue-200">
+          <div className="text-black-200">
             <Activity className="w-8 h-8 mx-auto mb-2 text-green-400" />
             <p className="text-sm">Preciso</p>
           </div>
