@@ -1,4 +1,3 @@
-
 import { useState, useEffect } from 'react';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -10,18 +9,10 @@ import { DiagnosisResult } from './DiagnosisResult';
 import { useAuth } from '../auth/AuthProvider';
 import { supabase } from '@/integrations/supabase/client';
 import { useToast } from '@/hooks/use-toast';
+import type { Tables } from '@/integrations/supabase/types';
 
-export interface Exam {
-  id: string;
-  user_id: string;
-  image_name: string;
-  image_url: string;
-  diagnosis: string;
-  confidence: number;
-  status: 'completed' | 'processing' | 'failed';
-  created_at: string;
-  updated_at: string;
-}
+// Use the Supabase generated type for Exam
+export type Exam = Tables<'exams'>;
 
 export const Dashboard = () => {
   const [currentTab, setCurrentTab] = useState('upload');
