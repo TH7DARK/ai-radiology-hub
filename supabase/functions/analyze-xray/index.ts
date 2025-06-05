@@ -1,4 +1,4 @@
-// supabase/functions/analyze-xray/index.ts
+
 import "https://deno.land/x/xhr@0.1.0/mod.ts";
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
 
@@ -15,14 +15,14 @@ serve(async (req) => {
 
   try {
     const body = await req.json();
-    const imageBase64 = body?.imageBase64; // Safer access
+    const imageBase64 = body?.imageBase64;
 
     if (!imageBase64) {
       console.error('Requisição sem imageBase64.');
       return new Response(
         JSON.stringify({ error: 'A propriedade imageBase64 é obrigatória no corpo da requisição.' }),
         {
-          status: 400, // Bad Request
+          status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -31,9 +31,13 @@ serve(async (req) => {
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
       console.error('OPENAI_API_KEY não configurada na Edge Function.');
-      // Não exponha detalhes da chave API ao cliente diretamente no erro.
-      // O log acima é suficiente para depuração no servidor.
-      throw new Error('Erro de configuração do servidor: OPENAI_API_KEY não configurada.');
+      return new Response(
+        JSON.stringify({ error: 'Erro de configuração do servidor: OPENAI_API_KEY não configurada.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     console.log('Iniciando análise da imagem com OpenAI...');
@@ -46,7 +50,7 @@ serve(async (req) => {
         'Accept': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4-vision-preview', // Considere 'gpt-4o' ou 'gpt-4o-mini' para performance/custo
+        model: 'gpt-4o', // Usando o modelo mais recente
         messages: [
           {
             role: 'system',
@@ -75,14 +79,14 @@ serve(async (req) => {
               {
                 type: 'image_url',
                 image_url: {
-                  url: `data:image/jpeg;base64,${imageBase64}`, // Adicione o prefixo data URL aqui
-                  detail: 'high' // Considere 'low' ou 'auto' para reduzir tempo/custo se aplicável
+                  url: `data:image/jpeg;base64,${imageBase64}`,
+                  detail: 'high'
                 }
               }
             ]
           }
         ],
-        max_tokens: 1000, // Reduzido de 1500; ajuste conforme necessário
+        max_tokens: 1000,
         temperature: 0.3
       }),
     });
@@ -90,7 +94,13 @@ serve(async (req) => {
     if (!response.ok) {
       const errorData = await response.json().catch(() => ({ error: { message: "Resposta não-JSON da OpenAI." } }));
       console.error('Erro da API OpenAI:', response.status, errorData);
-      throw new Error(`Erro da API OpenAI: ${errorData.error?.message || response.statusText || 'Erro desconhecido'}`);
+      return new Response(
+        JSON.stringify({ error: `Erro da API OpenAI: ${errorData.error?.message || response.statusText || 'Erro desconhecido'}` }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     const data = await response.json();
@@ -98,7 +108,13 @@ serve(async (req) => {
 
     if (!diagnosis) {
       console.error('Resposta inesperada da API OpenAI. Diagnóstico ausente:', data);
-      throw new Error('Resposta inválida da API OpenAI. Não foi possível obter o diagnóstico.');
+      return new Response(
+        JSON.stringify({ error: 'Resposta inválida da API OpenAI. Não foi possível obter o diagnóstico.' }),
+        {
+          status: 500,
+          headers: { ...corsHeaders, 'Content-Type': 'application/json' }
+        }
+      );
     }
 
     // Simular uma confiança baseada na resposta
@@ -112,28 +128,19 @@ serve(async (req) => {
         confidence: Math.round(confidence * 10) / 10
       }),
       {
-        status: 200, // Sucesso
+        status: 200,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
 
   } catch (error) {
-    console.error('Erro detalhado na função analyze-xray:', error, error.stack); // Log mais detalhado
-    let errorMessage = 'Ocorreu um erro ao analisar a imagem.';
-    // Evite expor detalhes internos da mensagem de erro diretamente ao cliente por segurança.
-    // Use os logs do servidor para depuração.
-    if (error.message.includes('OPENAI_API_KEY')) {
-      errorMessage = 'Erro de configuração interna do servidor.';
-    } else if (error.message.startsWith('Erro da API OpenAI:')) {
-      errorMessage = 'Não foi possível processar a imagem com o serviço de IA.';
-    }
-
+    console.error('Erro detalhado na função analyze-xray:', error);
     return new Response(
       JSON.stringify({
-        error: errorMessage,
+        error: 'Ocorreu um erro interno ao processar a imagem.',
       }),
       {
-        status: 500, // Internal Server Error
+        status: 500,
         headers: { ...corsHeaders, 'Content-Type': 'application/json' },
       }
     );
