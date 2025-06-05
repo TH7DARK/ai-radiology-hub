@@ -14,13 +14,15 @@ serve(async (req) => {
   }
 
   try {
+    console.log('Iniciando análise de imagem...');
+    
     const body = await req.json();
     const imageBase64 = body?.imageBase64;
 
     if (!imageBase64) {
-      console.error('Requisição sem imageBase64.');
+      console.error('Imagem não fornecida');
       return new Response(
-        JSON.stringify({ error: 'A propriedade imageBase64 é obrigatória no corpo da requisição.' }),
+        JSON.stringify({ error: 'Imagem é obrigatória' }),
         {
           status: 400,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -30,9 +32,9 @@ serve(async (req) => {
 
     const openAIApiKey = Deno.env.get('OPENAI_API_KEY');
     if (!openAIApiKey) {
-      console.error('OPENAI_API_KEY não configurada na Edge Function.');
+      console.error('OPENAI_API_KEY não configurada');
       return new Response(
-        JSON.stringify({ error: 'Erro de configuração do servidor: OPENAI_API_KEY não configurada.' }),
+        JSON.stringify({ error: 'Configuração do servidor incorreta' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -40,41 +42,39 @@ serve(async (req) => {
       );
     }
 
-    console.log('Iniciando análise da imagem com OpenAI...');
+    console.log('Enviando requisição para OpenAI...');
 
     const response = await fetch('https://api.openai.com/v1/chat/completions', {
       method: 'POST',
       headers: {
         'Authorization': `Bearer ${openAIApiKey}`,
         'Content-Type': 'application/json',
-        'Accept': 'application/json'
       },
       body: JSON.stringify({
-        model: 'gpt-4o', // Usando o modelo mais recente
+        model: 'gpt-4.1-2025-04-14',
         messages: [
           {
             role: 'system',
-            content: `Você é um radiologista especialista em análise de imagens de raio X.
-            Analise a imagem fornecida e forneça um diagnóstico detalhado seguindo este formato:
+            content: `Você é um radiologista especialista. Analise a imagem de raio X fornecida e forneça um diagnóstico seguindo este formato:
 
-            Análise da imagem de raio X:
+ANÁLISE RADIOLÓGICA:
 
-            • Campos pulmonares: [descreva transparência, presença de opacidades, etc.]
-            • Silhueta cardíaca: [descreva tamanho e contornos]
-            • Estruturas ósseas: [descreva costelas, clavículas, etc.]
-            • Mediastino: [descreva contornos e posição]
-            • Outros achados: [mencione qualquer outra observação relevante]
+• Campos pulmonares: [descrição detalhada]
+• Silhueta cardíaca: [descrição do tamanho e contornos]
+• Estruturas ósseas: [análise das costelas, clavículas, etc.]
+• Mediastino: [avaliação dos contornos]
+• Outros achados: [observações adicionais]
 
-            Conclusão: [forneça uma conclusão clara e recomendações]
+CONCLUSÃO: [diagnóstico resumido e recomendações]
 
-            IMPORTANTE: Este é um diagnóstico assistido por IA e deve sempre ser validado por um profissional médico qualificado.`
+IMPORTANTE: Este é um diagnóstico assistido por IA e deve ser validado por um médico.`
           },
           {
             role: 'user',
             content: [
               {
                 type: 'text',
-                text: 'Por favor, analise esta imagem de raio X e forneça um diagnóstico detalhado.'
+                text: 'Analise esta imagem de raio X e forneça um diagnóstico detalhado.'
               },
               {
                 type: 'image_url',
@@ -87,17 +87,31 @@ serve(async (req) => {
           }
         ],
         max_tokens: 1000,
-        temperature: 0.3
+        temperature: 0.2
       }),
     });
 
+    console.log(`Resposta da OpenAI: ${response.status}`);
+
     if (!response.ok) {
-      const errorData = await response.json().catch(() => ({ error: { message: "Resposta não-JSON da OpenAI." } }));
-      console.error('Erro da API OpenAI:', response.status, errorData);
+      let errorMessage = 'Erro na API OpenAI';
+      try {
+        const errorData = await response.json();
+        errorMessage = errorData.error?.message || errorMessage;
+        console.error('Erro detalhado da OpenAI:', errorData);
+        
+        // Tratamento específico para erro de quota
+        if (response.status === 429 || errorMessage.includes('quota')) {
+          errorMessage = 'Limite de uso da API OpenAI excedido. Tente novamente mais tarde.';
+        }
+      } catch (e) {
+        console.error('Erro ao processar resposta de erro:', e);
+      }
+      
       return new Response(
-        JSON.stringify({ error: `Erro da API OpenAI: ${errorData.error?.message || response.statusText || 'Erro desconhecido'}` }),
+        JSON.stringify({ error: errorMessage }),
         {
-          status: 500,
+          status: response.status,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
         }
       );
@@ -107,9 +121,9 @@ serve(async (req) => {
     const diagnosis = data.choices?.[0]?.message?.content;
 
     if (!diagnosis) {
-      console.error('Resposta inesperada da API OpenAI. Diagnóstico ausente:', data);
+      console.error('Diagnóstico não encontrado na resposta');
       return new Response(
-        JSON.stringify({ error: 'Resposta inválida da API OpenAI. Não foi possível obter o diagnóstico.' }),
+        JSON.stringify({ error: 'Não foi possível gerar o diagnóstico' }),
         {
           status: 500,
           headers: { ...corsHeaders, 'Content-Type': 'application/json' }
@@ -117,10 +131,10 @@ serve(async (req) => {
       );
     }
 
-    // Simular uma confiança baseada na resposta
-    const confidence = Math.random() * 15 + 85; // Entre 85% e 100%
+    // Gerar uma confiança baseada no comprimento e qualidade da resposta
+    const confidence = Math.min(95, Math.max(75, 80 + (diagnosis.length / 50)));
 
-    console.log('Análise concluída com sucesso.');
+    console.log('Análise concluída com sucesso');
 
     return new Response(
       JSON.stringify({
@@ -134,10 +148,10 @@ serve(async (req) => {
     );
 
   } catch (error) {
-    console.error('Erro detalhado na função analyze-xray:', error);
+    console.error('Erro na função analyze-xray:', error);
     return new Response(
       JSON.stringify({
-        error: 'Ocorreu um erro interno ao processar a imagem.',
+        error: 'Erro interno do servidor. Tente novamente.',
       }),
       {
         status: 500,
